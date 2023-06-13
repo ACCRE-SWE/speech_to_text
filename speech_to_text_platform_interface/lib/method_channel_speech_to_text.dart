@@ -99,6 +99,7 @@ class MethodChannelSpeechToText extends SpeechToTextPlatform {
   @override
   Future<bool> listen(
       {String? localeId,
+      String? fileName,
       partialResults = true,
       onDevice = false,
       int listenMode = 0,
@@ -111,6 +112,9 @@ class MethodChannelSpeechToText extends SpeechToTextPlatform {
     };
     if (null != localeId) {
       listenParams["localeId"] = localeId;
+    }
+    if (null != fileName) {
+      listenParams["fileName"] = fileName;
     }
     return await _channel.invokeMethod<bool>('listen', listenParams) ?? false;
   }

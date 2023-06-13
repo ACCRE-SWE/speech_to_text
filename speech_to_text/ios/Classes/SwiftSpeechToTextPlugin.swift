@@ -3,6 +3,7 @@ import UIKit
 import Speech
 import os.log
 import Try
+import Foundation
 
 public enum SwiftSpeechToTextMethods: String {
     case has_permission
@@ -123,6 +124,10 @@ public class SwiftSpeechToTextPlugin: NSObject, FlutterPlugin {
             if let localeParam = argsArr["localeId"] as? String {
                 localeStr = localeParam
             }
+            var fileName: String? = nil
+            if let fileParam = argsArr["fileName"] as? String {
+                fileName = fileParam
+            }
             guard let listenMode = ListenMode(rawValue: listenModeIndex) else {
                 DispatchQueue.main.async {
                     result(FlutterError( code: SpeechToTextErrors.missingOrInvalidArg.rawValue,
@@ -132,7 +137,7 @@ public class SwiftSpeechToTextPlugin: NSObject, FlutterPlugin {
                 return
             }
             
-            listenForSpeech( result, localeStr: localeStr, partialResults: partialResults, onDevice: onDevice, listenMode: listenMode, sampleRate: sampleRate )
+            listenForSpeech( result,fileName : fileName, localeStr: localeStr, partialResults: partialResults, onDevice: onDevice, listenMode: listenMode, sampleRate: sampleRate )
         case SwiftSpeechToTextMethods.stop.rawValue:
             stopSpeech( result )
         case SwiftSpeechToTextMethods.cancel.rawValue:
@@ -344,7 +349,7 @@ public class SwiftSpeechToTextPlugin: NSObject, FlutterPlugin {
         listening = false
     }
     
-    private func listenForSpeech( _ result: @escaping FlutterResult, localeStr: String?, partialResults: Bool, onDevice: Bool, listenMode: ListenMode, sampleRate: Int ) {
+    private func listenForSpeech( _ result: @escaping FlutterResult, fileName : String?, localeStr: String?, partialResults: Bool, onDevice: Bool, listenMode: ListenMode, sampleRate: Int ) {
         if ( nil != currentTask || listening ) {
             sendBoolResult( false, result );
             return
@@ -417,9 +422,33 @@ public class SwiftSpeechToTextPlugin: NSObject, FlutterPlugin {
             let recordingFormat = inputNode?.outputFormat(forBus: self.busForNodeTap)
             let theSampleRate = audioSession.sampleRate
             let fmt = AVAudioFormat(commonFormat: recordingFormat!.commonFormat, sampleRate: theSampleRate, channels: recordingFormat!.channelCount, interleaved: recordingFormat!.isInterleaved)
+            let modFormat = recordingFormat!.settings
+            guard let documentsURL = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first else {
+                throw SpeechToTextError.runtimeError("Failed to get documents directory")
+            }
+            let enableAudioFile = fileName != nil
+            var audioFile : AVAudioFile = AVAudioFile();
+
+            if (enableAudioFile) {
+                do{
+                    let fileURL = URL(string: fileName!)
+                    audioFile  = try AVAudioFile.init(forWriting: fileURL! , settings: modFormat)
+                    self.invokeFlutter( SwiftSpeechToTextCallbackMethods.notifyStatus, arguments: "saving file at" + fileURL!.absoluteString)
+                }catch{
+                    os_log("error")
+                }
+
+            } 
             try trap {
                 self.inputNode?.installTap(onBus: self.busForNodeTap, bufferSize: self.speechBufferSize, format: fmt) { (buffer: AVAudioPCMBuffer, when: AVAudioTime) in
                     currentRequest.append(buffer)
+                    if(enableAudioFile){
+                        do {
+                            try audioFile.write(from: buffer)
+                        }catch{
+                            os_log("error writing buffer")
+                        }
+                    }
                     self.updateSoundLevel( buffer: buffer )
                 }
             }

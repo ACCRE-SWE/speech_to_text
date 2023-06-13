@@ -137,6 +137,7 @@ class SpeechToTextProvider extends ChangeNotifier {
       Duration? listenFor,
       Duration? pauseFor,
       String? localeId,
+      String? fileName,
       ListenMode listenMode = ListenMode.confirmation}) {
     _lastLevel = 0;
     _lastResult = null;
@@ -150,6 +151,7 @@ class SpeechToTextProvider extends ChangeNotifier {
           onResult: _onListenResult,
           onSoundLevelChange: _onSoundLevelChange,
           localeId: localeId,
+          fileName: fileName,
           listenMode: listenMode);
     } else {
       _speechToText.listen(
@@ -160,6 +162,7 @@ class SpeechToTextProvider extends ChangeNotifier {
           cancelOnError: true,
           onResult: _onListenResult,
           localeId: localeId,
+          fileName: fileName,
           listenMode: listenMode);
     }
   }
